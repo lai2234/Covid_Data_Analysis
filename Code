@@ -1,0 +1,94 @@
+# import packages
+import pandas as pd
+import numpy as np
+import requests
+from pandas.io.json import json_normalize #special package in pandas
+import json
+import matplotlib.pyplot as plt
+import scipy.stats
+%matplotlib inline
+
+# set API key
+apiKey = "7509ba73531a4d1989b79b7c14c3d185"
+# set  parameter
+params = {'api_key': apiKey}
+
+# requesting data
+response = requests.get(
+        "https://api.covidactnow.org/v2/states.json?apiKey=" + apiKey
+    )
+    
+# Convert the data into JSON
+item = response.json()
+
+# JSON Python Object
+covid_str = json.dumps(item)
+covid_json = json.loads(covid_str)
+# Data Frame
+covid_df = json_normalize(covid_json)
+
+# Research problem: Which state has the highest infection rate in past 7 days?
+# Data Definition : https://apidocs.covidactnow.org/data-definitions/
+
+# Finding the highest infection rate
+rp1 = covid_df[["state","metrics.infectionRate"]]
+rp1a = rp1["metrics.infectionRate"].max()
+
+# Since now we know the highest infection rate , we will find out which state has that rate
+rp1.loc[rp1['metrics.infectionRate']== rp1a]
+
+#Data Visualization
+# scatterplot of Infection Rate per state
+# set the size(width, height)
+f, ax = plt.subplots(figsize=(30,15))
+plt.ylabel('Infection Rate')
+plt.xlabel('States')
+plt.title('Which state has the highest infection rate')
+plt.bar(rp1['state'], rp1['metrics.infectionRate'], color='black')
+
+
+# Research Question 2: Are there correlations between the negative result daily and the completed vaccination population?
+
+# To simplify the research question, Does the vaccination have impact or connect to the negative test result daily?
+
+rp2 = covid_df[["actuals.negativeTests","actuals.vaccinationsCompleted"]]
+
+# As we see the data, we spot some missing data
+rp2 = rp2.dropna() 
+
+# H0= There is no correlation between the actual case and the vaccination distrubution 
+# H1= There is correlation between the actual case and the vaccination distrubution
+# Statistically significant : P < 0.05 (alpha)
+
+x = rp2["actuals.negativeTests"] # an observation
+y=  rp2["actuals.vaccinationsCompleted"] # the features that are the properties or attributes of those observations.
+
+#functions return objects that contain two values: The correlation coefficient and The p-value
+scipy.stats.pearsonr(x, y)
+
+# From running the Perason correlation function, it indicates that the cofficient value is 0.95, which means it has
+# a very strong correlation between 2 variables.
+
+# I also indicate that the p-value is 4.75e-27, which is less than the alpha 0.05, therefore, it is rejecting the null value
+# and it is statistically significant.
+
+# Data Visualization
+
+# Create an x-y plot with the regression line, its equation, and the Pearson correlation coefficient
+slope, intercept, r, p, stderr = scipy.stats.linregress(x, y)
+line = f'Regression line: y={intercept:.2f}+{slope:.2f}x, r={r:.2f}'
+
+# Create the x-y plot 
+fig, ax = plt.subplots()
+ax.plot(x, y, linewidth=0, marker='s', label='Data points')
+ax.plot(x, intercept + slope * x, label=line)
+ax.set_xlabel('x')
+ax.set_ylabel('y')
+ax.legend(facecolor='white')
+plt.show()
+
+# To conclude, there are correlations between the number of negative test result daily and the number of people who are fully vaccined.
+
+# Reference: https://realpython.com/numpy-scipy-pandas-correlation-python/#visualization-of-correlation
+# https://www.statsdirect.com/help/basics/p_values.htm
+
